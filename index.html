@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>星语塔罗 · 星象塔罗占卜</title>
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+  <div class="starfield"></div>
+  <div class="glow"></div>
+
+  <main id="app">
+    <!-- 顶部 -->
+    <header class="hero">
+      <div class="hero-symbol">✦ ☾ ✦</div>
+      <h1>星语塔罗</h1>
+      <p class="hero-sub">以本命星盘为引，借塔罗牌启示前路</p>
+    </header>
+
+    <!-- 阶段一：录入 -->
+    <section id="stage-form" class="stage">
+      <div class="panel">
+        <h2 class="panel-title">留下你的星辰坐标</h2>
+        <p class="panel-desc">
+          出生信息决定你的本命星盘；填得越全，定盘越准。
+          <br>时间与地点用于推算上升与宫位，可留空则只取太阳星座层面的指引。
+        </p>
+
+        <div class="field">
+          <label>称呼</label>
+          <input id="f-name" type="text" placeholder="如何称呼你（可选）" maxlength="16">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>出生日期 <span class="req">必填</span></label>
+            <input id="f-date" type="date">
+          </div>
+          <div class="field">
+            <label>出生时间</label>
+            <input id="f-time" type="time">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>出生地点</label>
+          <input id="f-place" type="text" placeholder="如：浙江杭州（可选）" maxlength="30">
+        </div>
+
+        <div class="field">
+          <label>此刻想问</label>
+          <div class="topic-group" id="topic-group"></div>
+          <textarea id="f-question" rows="2" placeholder="写下你的问题，让占卜更聚焦（可选）" maxlength="60"></textarea>
+        </div>
+
+        <div class="form-error" id="form-error"></div>
+        <button id="divine-btn" class="primary-btn">
+          <span>洗牌 · 抽塔罗</span>
+        </button>
+        <p class="tip">同一个人、同一问题、同一天，牌面稳定不变——因为盘由人定。</p>
+      </div>
+    </section>
+
+    <!-- 阶段二：结果 -->
+    <section id="stage-result" class="stage hidden">
+      <div class="natal-card" id="natal"></div>
+
+      <div class="result-head">
+        <div class="spread-name" id="spread-name"></div>
+        <div class="topic-echo" id="topic-echo"></div>
+      </div>
+
+      <div class="board" id="board"></div>
+
+      <div class="closing-wrap" id="closing-wrap">
+        <div class="closing-title">✦ 综合寄语 ✦</div>
+        <p class="closing" id="closing"></p>
+        <button id="again-btn" class="ghost-btn">再问一卦</button>
+        <p class="disclaimer">占卜为传统文化与心理投射的游戏，结果仅供参考与启发，请理性看待，人生方向终由你自己把握。</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="data.js?v=1"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>

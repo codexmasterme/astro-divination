@@ -1,0 +1,284 @@
+/* =====================================================================
+ * 星语牌阵 — 样式
+ * 深夜星空基调 + 烫金点缀，卡牌 3D 翻转
+ * ===================================================================== */
+:root {
+  --bg0: #0b0a1f;
+  --bg1: #141232;
+  --ink: #ece8ff;
+  --muted: #a49fd0;
+  --gold: #e9c46a;
+  --gold-2: #f4d98b;
+  --red: #e05a6f;
+  --panel: rgba(30, 26, 62, 0.72);
+  --line: rgba(233, 196, 106, 0.28);
+  --radius: 16px;
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: var(--font);
+  color: var(--ink);
+  background: radial-gradient(circle at 50% -10%, #241f52 0%, var(--bg1) 45%, var(--bg0) 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.65;
+}
+
+/* 星空与光晕 */
+.starfield {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    radial-gradient(1.4px 1.4px at 20% 30%, #fff 50%, transparent),
+    radial-gradient(1.2px 1.2px at 70% 20%, #fff 50%, transparent),
+    radial-gradient(1.6px 1.6px at 40% 70%, #ffe9b0 50%, transparent),
+    radial-gradient(1px 1px at 85% 60%, #fff 50%, transparent),
+    radial-gradient(1.3px 1.3px at 60% 85%, #cfe 50%, transparent),
+    radial-gradient(1px 1px at 10% 80%, #fff 50%, transparent),
+    radial-gradient(1.5px 1.5px at 90% 35%, #ffe9b0 50%, transparent);
+  opacity: 0.7;
+  animation: twinkle 6s ease-in-out infinite alternate;
+}
+@keyframes twinkle { from { opacity: 0.45; } to { opacity: 0.85; } }
+.glow {
+  position: fixed; z-index: 0; pointer-events: none;
+  top: -20%; left: 50%; transform: translateX(-50%);
+  width: 620px; height: 620px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(233,196,106,0.16), transparent 65%);
+  filter: blur(10px);
+}
+
+#app { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 28px 18px 60px; }
+
+/* 顶部 */
+.hero { text-align: center; padding: 18px 0 26px; }
+.hero-symbol { color: var(--gold); letter-spacing: 6px; font-size: 18px; opacity: 0.85; }
+.hero h1 {
+  font-size: 34px; letter-spacing: 8px; margin: 8px 0 6px;
+  background: linear-gradient(180deg, var(--gold-2), var(--gold));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 24px rgba(233,196,106,0.25);
+}
+.hero-sub { color: var(--muted); font-size: 14px; letter-spacing: 1px; }
+
+/* 面板 */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px 20px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.4);
+}
+.panel-title { font-size: 19px; letter-spacing: 2px; color: var(--gold-2); margin-bottom: 8px; }
+.panel-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+.field { margin-bottom: 16px; }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+.field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 7px; letter-spacing: 1px; }
+.field .req { color: var(--gold); font-size: 11px; margin-left: 4px; }
+
+input, textarea {
+  width: 100%; font-family: var(--font); font-size: 15px; color: var(--ink);
+  background: rgba(12, 10, 30, 0.6);
+  border: 1px solid rgba(164,159,208,0.28);
+  border-radius: 10px; padding: 11px 13px; outline: none; resize: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+input::placeholder, textarea::placeholder { color: #6f6a99; }
+input:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(233,196,106,0.15); }
+input[type="date"], input[type="time"] { color-scheme: dark; }
+
+/* 领域选择 */
+.topic-group { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+.topic-btn {
+  font-family: var(--font); cursor: pointer;
+  background: rgba(12,10,30,0.5); color: var(--muted);
+  border: 1px solid rgba(164,159,208,0.25); border-radius: 10px;
+  padding: 9px 4px; font-size: 12.5px; letter-spacing: 1px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: all .18s;
+}
+.topic-btn .ic { font-size: 17px; }
+.topic-btn.active {
+  color: #241f52; font-weight: 700;
+  background: linear-gradient(180deg, var(--gold-2), var(--gold));
+  border-color: var(--gold);
+  box-shadow: 0 6px 16px rgba(233,196,106,0.3);
+}
+
+.form-error {
+  color: var(--red); font-size: 13px; margin: 4px 0 12px; min-height: 0; opacity: 0;
+  max-height: 0; overflow: hidden; transition: opacity .2s, max-height .2s;
+}
+.form-error.show { opacity: 1; max-height: 40px; margin-bottom: 12px; }
+
+.primary-btn {
+  width: 100%; cursor: pointer; font-family: var(--font);
+  background: linear-gradient(180deg, var(--gold-2), var(--gold));
+  color: #241f52; font-size: 17px; font-weight: 700; letter-spacing: 4px;
+  border: none; border-radius: 12px; padding: 15px; margin-top: 4px;
+  box-shadow: 0 10px 26px rgba(233,196,106,0.35);
+  transition: transform .12s, box-shadow .2s;
+}
+.primary-btn:active { transform: translateY(2px); box-shadow: 0 5px 14px rgba(233,196,106,0.3); }
+.tip { text-align: center; font-size: 12px; color: #7b76a6; margin-top: 14px; }
+
+/* 结果 */
+.hidden { display: none; }
+
+.natal-card {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 18px 20px; margin-bottom: 22px;
+  backdrop-filter: blur(8px);
+}
+.natal-symbol {
+  font-size: 46px; color: var(--gold);
+  text-shadow: 0 0 20px rgba(233,196,106,0.5); flex: 0 0 auto;
+}
+.natal-name { font-size: 18px; letter-spacing: 2px; color: var(--gold-2); }
+.natal-meta { font-size: 12.5px; color: var(--muted); margin: 4px 0 8px; }
+.natal-key { display: flex; flex-wrap: wrap; gap: 6px; }
+.natal-key span {
+  font-size: 11.5px; color: var(--ink);
+  background: rgba(233,196,106,0.12); border: 1px solid var(--line);
+  border-radius: 20px; padding: 2px 10px;
+}
+.natal-asc {
+  margin-top: 10px; font-size: 12px; color: var(--muted);
+  border-top: 1px dashed rgba(164,159,208,0.25); padding-top: 9px;
+}
+.natal-asc b { color: var(--gold-2); font-size: 13.5px; margin: 0 4px; letter-spacing: 1px; }
+.natal-asc .asc-note { display: block; font-size: 10.5px; color: #7b76a6; margin-top: 2px; }
+.natal-asc.muted { color: #8580ad; }
+
+.result-head { text-align: center; margin-bottom: 20px; }
+.spread-name { font-size: 16px; letter-spacing: 3px; color: var(--gold-2); }
+.topic-echo { font-size: 13px; color: var(--muted); margin-top: 5px; }
+
+/* 牌桌 */
+.board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 26px; }
+.card-slot { display: flex; flex-direction: column; align-items: center; }
+.slot-label {
+  font-size: 13px; letter-spacing: 2px; color: var(--gold);
+  margin-bottom: 10px; padding: 2px 12px;
+  border: 1px solid var(--line); border-radius: 20px;
+  background: rgba(233,196,106,0.08);
+}
+
+/* 3D 翻牌 */
+.card { width: 100%; aspect-ratio: 5 / 7.4; perspective: 900px; cursor: default; }
+.card-inner {
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d; transition: transform .8s cubic-bezier(.4,.2,.2,1);
+}
+.card.flipped .card-inner { transform: rotateY(180deg); }
+.card-face {
+  position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  border-radius: 12px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+/* 牌背 */
+.card-back {
+  background:
+    repeating-linear-gradient(45deg, rgba(233,196,106,0.08) 0 6px, transparent 6px 12px),
+    linear-gradient(160deg, #2a2560, #1a1740);
+  border: 1.5px solid var(--gold); box-shadow: inset 0 0 20px rgba(233,196,106,0.15);
+}
+.back-art {
+  width: 78%; height: 88%; border: 1px solid var(--line); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.back-star { color: var(--gold); font-size: 30px; text-shadow: 0 0 14px rgba(233,196,106,0.6); animation: spin 8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 塔罗牌面 */
+.card-front {
+  transform: rotateY(180deg);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(233,196,106,0.14), transparent 60%),
+    linear-gradient(165deg, #241f52 0%, #17143a 100%);
+  border: 1.5px solid var(--gold);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.45), inset 0 0 26px rgba(233,196,106,0.12);
+  color: var(--ink);
+  padding: 8px;
+}
+/* 牌面内层描边 */
+.card-front::before {
+  content: ''; position: absolute; inset: 5px;
+  border: 1px solid var(--line); border-radius: 8px; pointer-events: none;
+}
+.tarot-body {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+/* 逆位：整体图案倒转，直观呈现 */
+.card-front.reversed .tarot-body { transform: rotate(180deg); }
+.tarot-roman {
+  font-size: 13px; letter-spacing: 1px; color: var(--gold); font-weight: 700;
+}
+.tarot-symbol {
+  font-size: 40px; line-height: 1.1;
+  filter: drop-shadow(0 0 10px rgba(233,196,106,0.4));
+}
+.tarot-name {
+  font-size: 16px; letter-spacing: 2px; color: var(--gold-2); font-weight: 700; margin-top: 2px;
+}
+.tarot-en { font-size: 9px; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; }
+/* 正/逆位角标（始终正向可读） */
+.tarot-ori {
+  position: absolute; top: 8px; right: 9px; z-index: 2;
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  padding: 1px 6px; border-radius: 8px;
+}
+.tarot-ori.up { color: #1c3a2a; background: #8fd6a8; }
+.tarot-ori.rev { color: #3a1c22; background: #e0a0ac; }
+
+/* 单张释义 */
+.card-read {
+  width: 100%; margin-top: 12px; padding: 10px 11px;
+  background: rgba(20,18,46,0.6); border: 1px solid rgba(164,159,208,0.2);
+  border-radius: 10px; opacity: 0; transform: translateY(8px);
+  transition: opacity .5s, transform .5s;
+}
+.card-read.show { opacity: 1; transform: none; }
+.cr-title { font-size: 13.5px; font-weight: 700; color: var(--gold-2); letter-spacing: 1px; }
+.cr-ori-badge {
+  font-size: 10px; font-weight: 700; padding: 0 6px; border-radius: 8px; margin-left: 4px;
+  vertical-align: middle;
+}
+.cr-ori-badge.up { color: #1c3a2a; background: #8fd6a8; }
+.cr-ori-badge.rev { color: #3a1c22; background: #e0a0ac; }
+.cr-hint { font-size: 11px; color: var(--muted); margin: 2px 0 6px; }
+.cr-body { font-size: 12px; color: var(--ink); }
+.cr-advice { font-size: 11.5px; color: var(--gold); margin-top: 6px; }
+
+/* 综合寄语 */
+.closing-wrap {
+  text-align: center; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 24px 20px; backdrop-filter: blur(8px);
+  opacity: 0; transform: translateY(12px); transition: opacity .6s, transform .6s;
+}
+.closing-wrap.show { opacity: 1; transform: none; }
+.closing-title { color: var(--gold); letter-spacing: 3px; font-size: 15px; margin-bottom: 12px; }
+.closing { font-size: 14px; color: var(--ink); text-align: left; }
+.ghost-btn {
+  margin: 22px auto 0; display: block; cursor: pointer; font-family: var(--font);
+  background: transparent; color: var(--gold); font-size: 15px; letter-spacing: 3px;
+  border: 1px solid var(--gold); border-radius: 24px; padding: 10px 32px;
+  transition: background .2s, color .2s;
+}
+.ghost-btn:active { background: var(--gold); color: #241f52; }
+.disclaimer { font-size: 11px; color: #6f6a99; margin-top: 18px; line-height: 1.6; }
+
+/* 响应式 */
+@media (max-width: 520px) {
+  .board { gap: 8px; }
+  .hero h1 { font-size: 28px; letter-spacing: 6px; }
+  .card-front .pip { font-size: 34px; }
+  .cr-body, .cr-title { font-size: 11.5px; }
+}
