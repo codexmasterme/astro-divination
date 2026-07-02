@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>星语塔罗 · 星象塔罗占卜</title>
-  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <div class="starfield"></div>
@@ -23,8 +23,7 @@
       <div class="panel">
         <h2 class="panel-title">留下你的星辰坐标</h2>
         <p class="panel-desc">
-          出生信息决定你的本命星盘；填得越全，定盘越准。
-          <br>时间与地点用于推算上升与宫位，可留空则只取太阳星座层面的指引。
+          出生日期定太阳星座；加上时间与地点，可估算<b>月亮星座</b>与<b>上升星座</b>，并推算十二宫位。
         </p>
 
         <div class="field">
@@ -38,27 +37,31 @@
             <input id="f-date" type="date">
           </div>
           <div class="field">
-            <label>出生时间</label>
+            <label>出生时间 <span class="opt">推荐</span></label>
             <input id="f-time" type="time">
           </div>
         </div>
 
         <div class="field">
-          <label>出生地点</label>
-          <input id="f-place" type="text" placeholder="如：浙江杭州（可选）" maxlength="30">
+          <label>出生地点 <span class="opt">推荐</span></label>
+          <input id="f-place" type="text" placeholder="如：浙江杭州（支持全国 336 个地级市）" maxlength="30">
         </div>
 
         <div class="field">
-          <label>此刻想问</label>
-          <div class="topic-group" id="topic-group"></div>
-          <textarea id="f-question" rows="2" placeholder="写下你的问题，让占卜更聚焦（可选）" maxlength="60"></textarea>
+          <label>想问的事（可选）</label>
+          <textarea id="f-question" rows="2" placeholder="写下你的问题，让牌阵更聚焦" maxlength="60"></textarea>
+        </div>
+
+        <div class="field">
+          <label>选择牌阵</label>
+          <div class="spread-select" id="spread-select"></div>
         </div>
 
         <div class="form-error" id="form-error"></div>
         <button id="divine-btn" class="primary-btn">
           <span>洗牌 · 抽塔罗</span>
         </button>
-        <p class="tip">同一个人、同一问题、同一天，牌面稳定不变——因为盘由人定。</p>
+        <p class="tip">同一人·同一问·同一天——结果稳定，因为盘由人定。</p>
       </div>
     </section>
 
@@ -77,12 +80,24 @@
         <div class="closing-title">✦ 综合寄语 ✦</div>
         <p class="closing" id="closing"></p>
         <button id="again-btn" class="ghost-btn">再问一卦</button>
-        <p class="disclaimer">占卜为传统文化与心理投射的游戏，结果仅供参考与启发，请理性看待，人生方向终由你自己把握。</p>
+        <p class="disclaimer">占卜为传统文化与心理投射的游戏，结果仅供参考与启发，请理性看待，人生方向终由你自己把握。月亮与上升星座均为天文近似算法，非专业排盘精度。</p>
+
+        <!-- 结果页底部：项目二维码 -->
+        <div class="result-qr">
+          <a class="result-qr-img" href="https://codexmasterme.github.io/astro-divination/" target="_blank" rel="noopener">
+            <img src="qr-github.svg" alt="星语塔罗项目二维码" width="128" height="128">
+          </a>
+          <div class="result-qr-text">
+            <div class="rq-title">✦ 星语塔罗 · 开源项目</div>
+            <div class="rq-sub">扫码或点击，打开在线版 / 查看 GitHub 源码</div>
+            <div class="rq-url">codexmasterme.github.io/astro-divination</div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
-  <script src="data.js?v=1"></script>
-  <script src="app.js?v=1"></script>
+  <script src="data.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

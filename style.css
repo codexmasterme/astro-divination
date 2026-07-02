@@ -92,23 +92,24 @@ input::placeholder, textarea::placeholder { color: #6f6a99; }
 input:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(233,196,106,0.15); }
 input[type="date"], input[type="time"] { color-scheme: dark; }
 
-/* 领域选择 */
-.topic-group { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
-.topic-btn {
+/* 牌阵选择器 */
+.spread-select { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.spread-btn {
   font-family: var(--font); cursor: pointer;
   background: rgba(12,10,30,0.5); color: var(--muted);
   border: 1px solid rgba(164,159,208,0.25); border-radius: 10px;
-  padding: 9px 4px; font-size: 12.5px; letter-spacing: 1px;
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  transition: all .18s;
+  padding: 10px 10px; font-size: 13px; letter-spacing: 0.5px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  transition: all .18s; text-align: left;
 }
-.topic-btn .ic { font-size: 17px; }
-.topic-btn.active {
-  color: #241f52; font-weight: 700;
-  background: linear-gradient(180deg, var(--gold-2), var(--gold));
-  border-color: var(--gold);
-  box-shadow: 0 6px 16px rgba(233,196,106,0.3);
+.sb-name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.sb-sub { font-size: 11px; color: var(--muted); }
+.spread-btn.active {
+  background: linear-gradient(160deg, rgba(233,196,106,0.22), rgba(233,196,106,0.1));
+  border-color: var(--gold); box-shadow: 0 4px 14px rgba(233,196,106,0.2);
 }
+.spread-btn.active .sb-name { color: var(--gold-2); }
+.spread-btn.active .sb-sub { color: var(--gold); }
 
 .form-error {
   color: var(--red); font-size: 13px; margin: 4px 0 12px; min-height: 0; opacity: 0;
@@ -148,20 +149,63 @@ input[type="date"], input[type="time"] { color-scheme: dark; }
   background: rgba(233,196,106,0.12); border: 1px solid var(--line);
   border-radius: 20px; padding: 2px 10px;
 }
-.natal-asc {
-  margin-top: 10px; font-size: 12px; color: var(--muted);
-  border-top: 1px dashed rgba(164,159,208,0.25); padding-top: 9px;
-}
-.natal-asc b { color: var(--gold-2); font-size: 13.5px; margin: 0 4px; letter-spacing: 1px; }
-.natal-asc .asc-note { display: block; font-size: 10.5px; color: #7b76a6; margin-top: 2px; }
-.natal-asc.muted { color: #8580ad; }
+/* 月亮/上升星座行 */
+.natal-planets { margin-top: 10px; border-top: 1px dashed rgba(164,159,208,0.22); padding-top: 9px; display: flex; flex-direction: column; gap: 6px; }
+.natal-planet { font-size: 12px; color: var(--muted); display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+.natal-planet.muted { color: #7b76a6; font-style: italic; }
+.planet-ic { font-style: normal; width: 16px; flex-shrink: 0; }
+.planet-label { color: var(--muted); flex-shrink: 0; }
+.natal-planet b { color: var(--gold-2); font-size: 13px; letter-spacing: 1px; }
+.planet-kw { color: var(--muted); font-size: 11px; }
+.planet-house { color: #9f9bc8; font-size: 11px; background: rgba(164,159,208,0.15); border-radius: 8px; padding: 1px 7px; }
+.asc-note { color: #6f6a99; font-size: 10.5px; display: block; width: 100%; padding-left: 20px; }
+/* 推荐标签 */
+.field .opt { color: var(--muted); font-size: 11px; margin-left: 4px; }
 
 .result-head { text-align: center; margin-bottom: 20px; }
 .spread-name { font-size: 16px; letter-spacing: 3px; color: var(--gold-2); }
 .topic-echo { font-size: 13px; color: var(--muted); margin-top: 5px; }
 
-/* 牌桌 */
+/* 牌桌 — 默认三列 */
 .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 26px; }
+
+/* 五张阵：上3下2 */
+.board-5 { grid-template-columns: repeat(3, 1fr); }
+.board-5 .card-slot:nth-child(4) { grid-column: 1; }
+.board-5 .card-slot:nth-child(5) { grid-column: 3; }
+.board-5 .card-slot:nth-child(4),
+.board-5 .card-slot:nth-child(5) { grid-row: 2; }
+
+/* 凯尔特十字：经典布局
+ * 列：1=左柱  2=中心  3=右柱  4=右侧竖列
+ *   [9]          [4]
+ *   [3]  [1][2] [5]  [10]
+ *        [ 6 ]       [8]
+ *                     [7]
+ * 用 grid-area 精确放置 */
+.board-celtic {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-rows: auto auto auto auto;
+  gap: 6px;
+}
+.board-celtic .card-slot { min-width: 0; }
+/* 牌位 1-10 位置映射（data-pos attribute） */
+.board-celtic .card-slot[data-pos="1"] { grid-column: 2; grid-row: 2; }
+.board-celtic .card-slot[data-pos="2"] { grid-column: 3; grid-row: 2; }
+.board-celtic .card-slot[data-pos="3"] { grid-column: 1; grid-row: 2; }
+.board-celtic .card-slot[data-pos="4"] { grid-column: 2; grid-row: 1; }
+.board-celtic .card-slot[data-pos="5"] { grid-column: 2; grid-row: 3; }  /* 近未来 */
+.board-celtic .card-slot[data-pos="6"] { grid-column: 3; grid-row: 1; }  /* 目标 */
+.board-celtic .card-slot[data-pos="7"] { grid-column: 4; grid-row: 4; }
+.board-celtic .card-slot[data-pos="8"] { grid-column: 4; grid-row: 3; }
+.board-celtic .card-slot[data-pos="9"] { grid-column: 4; grid-row: 2; }
+.board-celtic .card-slot[data-pos="10"] { grid-column: 4; grid-row: 1; }
+/* 凯尔特十字 card-read 在小布局中全宽显示 */
+.board-celtic .card-read { font-size: 11px; }
+.board-celtic .cr-body { font-size: 10.5px; }
+.board-celtic .tarot-symbol { font-size: 28px !important; }
+.board-celtic .tarot-name { font-size: 12px !important; }
+.board-celtic .tarot-en { font-size: 8px !important; }
 .card-slot { display: flex; flex-direction: column; align-items: center; }
 .slot-label {
   font-size: 13px; letter-spacing: 2px; color: var(--gold);
@@ -274,6 +318,25 @@ input[type="date"], input[type="time"] { color-scheme: dark; }
 }
 .ghost-btn:active { background: var(--gold); color: #241f52; }
 .disclaimer { font-size: 11px; color: #6f6a99; margin-top: 18px; line-height: 1.6; }
+
+/* 结果页底部：项目二维码 */
+.result-qr {
+  display: flex; align-items: center; gap: 16px;
+  margin-top: 22px; padding-top: 20px;
+  border-top: 1px dashed rgba(233,196,106,0.28);
+  text-align: left;
+}
+.result-qr-img {
+  flex: 0 0 auto; width: 96px; height: 96px;
+  background: #fff; border-radius: 10px; padding: 7px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  display: block;
+}
+.result-qr-img img { display: block; width: 100%; height: 100%; }
+.result-qr-text { min-width: 0; }
+.rq-title { font-size: 14px; font-weight: 700; color: var(--gold-2); letter-spacing: 1px; }
+.rq-sub { font-size: 12px; color: var(--muted); margin: 5px 0 6px; line-height: 1.5; }
+.rq-url { font-size: 11.5px; color: var(--gold); word-break: break-all; }
 
 /* 响应式 */
 @media (max-width: 520px) {

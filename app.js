@@ -1,20 +1,20 @@
 /* =====================================================================
  * 星语塔罗 — 逻辑层
- * 流程：录入出生信息与问题 → 定本命盘(太阳星座) → 以信息为种子抽塔罗牌
- *       → 塔罗牌翻牌动画呈现(含正/逆位) → 生成综合解读
- * 设计原则：同一人 + 同一问题 + 同一日期 => 结果稳定（盘由人定）
+ * 功能：
+ *   - 太阳星座（出生日期）
+ *   - 月亮星座（近似月球黄经算法）
+ *   - 上升星座估算（地方恒星时 + 黄赤交角）
+ *   - 十二宫位（以上升点为第一宫起算）
+ *   - 78 张塔罗抽牌（确定性 + 正/逆位）
+ *   - 可选牌阵：三张 / 五芒星 / 爱情五叶 / 凯尔特十字
  * ===================================================================== */
 
-/* ---------------- 工具：确定性随机 ---------------- */
-// 字符串 -> 32bit 哈希（xfnv1a）
+/* ──────────────── 工具：确定性随机 ──────────────── */
 function hashSeed(str) {
   let h = 2166136261 >>> 0;
-  for (let i = 0; i < str.length; i++) {
-    h = Math.imul(h ^ str.charCodeAt(i), 16777619);
-  }
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
   return h >>> 0;
 }
-// mulberry32：由种子生成可复现的伪随机序列
 function mulberry32(seed) {
   return function () {
     seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
@@ -24,197 +24,282 @@ function mulberry32(seed) {
   };
 }
 
-/* ---------------- 太阳星座计算 ---------------- */
+/* ──────────────── 天文常量 ──────────────── */
+const DEG = Math.PI / 180;
+function normDeg(x) { return ((x % 360) + 360) % 360; }
+
+/* 儒略日（hourUT 为 UT 小数小时） */
+function julianDay(y, m, d, hourUT) {
+  if (m <= 2) { y -= 1; m += 12; }
+  const A = Math.floor(y / 100), B = 2 - A + Math.floor(A / 4);
+  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1))
+    + d + B - 1524.5 + hourUT / 24;
+}
+
+/* 格林尼治恒星时 → 地方恒星时 (度) */
+function localSiderealTime(jd, lngEast) {
+  const T = (jd - 2451545.0) / 36525;
+  const gmst = 280.46061837 + 360.98564736629 * (jd - 2451545.0)
+    + 0.000387933 * T * T - T * T * T / 38710000;
+  return normDeg(normDeg(gmst) + lngEast);
+}
+
+/* 上升点黄经（日出校验通过：日出时上升=太阳黄经） */
+function ascendantLongitude(lstDeg, latDeg) {
+  const eps = 23.4392911 * DEG, ramc = lstDeg * DEG, lat = latDeg * DEG;
+  return normDeg(Math.atan2(Math.cos(ramc),
+    -(Math.sin(ramc) * Math.cos(eps) + Math.tan(lat) * Math.sin(eps))) / DEG);
+}
+
+/* 黄经 → 星座对象 */
+function signFromLongitude(lonDeg) {
+  return signByKey(ZODIAC_ORDER[Math.floor(normDeg(lonDeg) / 30) % 12]);
+}
+
+/* ──────────────── 太阳星座 ──────────────── */
 function getSunSign(month, day) {
   for (const z of ZODIAC) {
     const [fm, fd] = z.from, [tm, td] = z.to;
-    if (fm === 12) { // 摩羯座跨年
+    if (fm === 12) {
       if ((month === 12 && day >= fd) || (month === 1 && day <= td)) return z;
-    } else if ((month === fm && day >= fd) || (month === tm && day <= td)) {
-      return z;
-    }
+    } else if ((month === fm && day >= fd) || (month === tm && day <= td)) return z;
   }
   return ZODIAC[0];
 }
 
-/* ---------------- 上升星座估算（天文近似） ----------------
- * 步骤：本地钟表时间 → UT → 儒略日 → 格林尼治恒星时(GMST) → 地方恒星时(LST)
- *       → 结合黄赤交角与纬度求上升点黄经 → 映射到黄道十二星座。
- * 说明：这是不含岁差/章动的近似算法，用于占卜参考，非专业排盘精度。 */
-const DEG = Math.PI / 180;
-function julianDay(y, m, d, hourUT) {
-  // hourUT 为 UT 的小数小时，可为负（会正确落到前一日）
-  if (m <= 2) { y -= 1; m += 12; }
-  const A = Math.floor(y / 100);
-  const B = 2 - A + Math.floor(A / 4);
-  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1))
-    + d + B - 1524.5 + hourUT / 24;
-}
-function normDeg(x) { return ((x % 360) + 360) % 360; }
-function localSiderealTime(jd, lngEast) {
+/* ──────────────── 月亮星座（近似） ────────────────
+ * 使用 Jean Meeus «Astronomical Algorithms» 简化展开式
+ * 误差 ≤ 1°，对应月亮在某星座的时间误差约 2 小时，用于占卜参考。 */
+function moonLongitude(jd) {
   const T = (jd - 2451545.0) / 36525;
-  let gmst = 280.46061837 + 360.98564736629 * (jd - 2451545.0)
-    + 0.000387933 * T * T - (T * T * T) / 38710000;
-  return normDeg(normDeg(gmst) + lngEast);
+  // 月球平均黄经 L'
+  const L1 = normDeg(218.3164477 + 481267.88123421 * T
+    - 0.0015786 * T * T + T * T * T / 538841 - T * T * T * T / 65194000);
+  // 月球平均异常角 M'
+  const M1 = normDeg(134.9633964 + 477198.8676313 * T
+    + 0.008997 * T * T + T * T * T / 69699 - T * T * T * T / 14712000);
+  // 太阳平均异常角 M
+  const M = normDeg(357.5291092 + 35999.0502909 * T
+    - 0.0001536 * T * T + T * T * T / 24490000);
+  // 月球到升交点距离 F
+  const F = normDeg(93.2720950 + 483202.0175233 * T
+    - 0.0036539 * T * T - T * T * T / 3526000 + T * T * T * T / 863310000);
+  // 主要摄动修正（度）
+  const corr =
+    6.288774 * Math.sin(M1 * DEG) +
+    1.274027 * Math.sin((2 * L1 - M1) * DEG) +
+    0.658314 * Math.sin(2 * L1 * DEG) +
+    0.213618 * Math.sin(2 * M1 * DEG) -
+    0.185116 * Math.sin(M * DEG) -
+    0.114332 * Math.sin(2 * F * DEG) +
+    0.058793 * Math.sin((2 * L1 - 2 * M1) * DEG) +
+    0.057066 * Math.sin((2 * L1 - M - M1) * DEG) +
+    0.053322 * Math.sin((2 * L1 + M1) * DEG) +
+    0.045758 * Math.sin((2 * L1 - M) * DEG) -
+    0.040923 * Math.sin((M - M1) * DEG) -
+    0.034720 * Math.sin(L1 * DEG) -
+    0.030383 * Math.sin((M + M1) * DEG) +
+    0.015327 * Math.sin((2 * L1 - 2 * F) * DEG) -
+    0.012528 * Math.sin((M1 + 2 * F) * DEG) +
+    0.010980 * Math.sin((M1 - 2 * F) * DEG);
+  return normDeg(L1 + corr);
 }
-// 由地方恒星时(RAMC)与纬度求上升点黄经(0-360°)
-function ascendantLongitude(lstDeg, latDeg) {
-  const eps = 23.4392911 * DEG;          // 黄赤交角
-  const ramc = lstDeg * DEG;
-  const lat = latDeg * DEG;
-  // 经日出校验：此式给出的黄经在日出时与太阳黄经吻合，即东方地平线上的上升点
-  const asc = Math.atan2(
-    Math.cos(ramc),
-    -(Math.sin(ramc) * Math.cos(eps) + Math.tan(lat) * Math.sin(eps))
-  ) / DEG;
-  return normDeg(asc);
+
+/* ──────────────── 十二宫位（等宫制） ────────────────
+ * 以上升点为第一宫起点，每 30° 一宫，共 12 宫。
+ * 宫位代表生命的 12 个主题领域。 */
+const HOUSE_THEMES = [
+  '第一宫·自我形象',   '第二宫·财富资源', '第三宫·沟通思维',
+  '第四宫·家庭根基',   '第五宫·创造快乐', '第六宫·健康工作',
+  '第七宫·伴侣合作',   '第八宫·蜕变共享', '第九宫·信仰远方',
+  '第十宫·事业名望',   '第十一宫·友谊理想','第十二宫·潜意识',
+];
+const HOUSE_KEYWORDS = [
+  ['外表', '开端', '自我意识'],   ['金钱', '价值', '安全感'],
+  ['语言', '学习', '兄弟姐妹'],   ['家庭', '根基', '私密'],
+  ['乐趣', '恋爱', '子女'],       ['服务', '健康', '日常'],
+  ['关系', '契约', '他人'],       ['性', '死亡', '共同财产'],
+  ['旅行', '哲学', '外国'],       ['职业', '社会地位', '父亲'],
+  ['友情', '团体', '梦想'],       ['孤独', '业力', '秘密'],
+];
+// 给定行星黄经与上升点黄经，返回宫位 1-12
+function calcHouse(planetLon, ascLon) {
+  return Math.floor(normDeg(planetLon - ascLon) / 30) % 12 + 1;
 }
-// 黄经 -> 星座（0°=白羊，每 30° 一个星座）
-function signFromLongitude(lonDeg) {
-  const idx = Math.floor(normDeg(lonDeg) / 30) % 12;
-  return signByKey(ZODIAC_ORDER[idx]);
-}
-// 综合入口：给定出生年月日、时间字符串、地点文本，返回上升星座信息或 null
-function estimateAscendant(y, m, d, timeStr, placeStr) {
-  if (!timeStr) return null; // 无出生时间无法估算
-  const [hh, mm] = timeStr.split(':').map(Number);
-  if (Number.isNaN(hh)) return null;
+
+/* ──────────────── 综合估算入口 ──────────────── */
+function estimatePlanets(y, m, d, timeStr, placeStr) {
+  const result = { sun: null, moon: null, asc: null, moonHouse: null, ascHouse: 1 };
   const city = geocodeCity(placeStr) || DEFAULT_CITY;
-  const localHour = hh + (mm || 0) / 60;
-  const hourUT = localHour - city.tz;         // 本地钟表时间转 UT
-  const jd = julianDay(y, m, d, hourUT);
-  const lst = localSiderealTime(jd, city.lng);
-  const lon = ascendantLongitude(lst, city.lat);
-  const sign = signFromLongitude(lon);
   const matched = !!geocodeCity(placeStr);
-  return { sign, city, matched, longitude: lon };
-}
 
-/* ---------------- 从种子抽牌（无重复，并决定正/逆位） ---------------- */
-function drawCards(rng, deck, n) {
-  const pool = deck.slice();
-  const picked = [];
-  for (let i = 0; i < n; i++) {
-    const idx = Math.floor(rng() * pool.length);
-    const card = pool.splice(idx, 1)[0];
-    const reversed = rng() < 0.42; // 逆位概率略低于正位
-    picked.push({ card, reversed });
+  // 基准时间（取中午 12:00 本地时间，用于无出生时间时计算月亮）
+  let localHour = 12;
+  let hasTime = false;
+  if (timeStr) {
+    const [hh, mm] = timeStr.split(':').map(Number);
+    if (!Number.isNaN(hh)) { localHour = hh + (mm || 0) / 60; hasTime = true; }
   }
-  return picked;
+  const hourUT = localHour - city.tz;
+  const jd = julianDay(y, m, d, hourUT);
+
+  // 月亮星座（有无时间都算，无时间用中午 UT，精度约 ±6 小时内稳定）
+  const moonLon = moonLongitude(jd);
+  result.moon = { sign: signFromLongitude(moonLon), longitude: moonLon };
+
+  // 上升星座（需出生时间）
+  if (hasTime) {
+    const lst = localSiderealTime(jd, city.lng);
+    const ascLon = ascendantLongitude(lst, city.lat);
+    result.asc = { sign: signFromLongitude(ascLon), longitude: ascLon, city, matched };
+    // 月亮在第几宫
+    result.moonHouse = calcHouse(moonLon, ascLon);
+  }
+
+  return result;
 }
 
-/* ---------------- DOM 引用 ---------------- */
+/* ──────────────── DOM 引用 ──────────────── */
 const $ = (sel) => document.querySelector(sel);
-const state = { topic: 'general' };
+const $$ = (sel) => document.querySelectorAll(sel);
+const state = { spreadKey: 'general' };
 
-/* ---------------- 初始化：领域按钮 ---------------- */
-function initTopics() {
-  const wrap = $('#topic-group');
-  TOPICS.forEach((t, i) => {
+/* ──────────────── 初始化：牌阵选择器 ──────────────── */
+function initSpreads() {
+  const wrap = $('#spread-select');
+  SPREAD_OPTIONS.forEach((opt, i) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'topic-btn' + (i === 0 ? ' active' : '');
-    b.dataset.key = t.key;
-    b.innerHTML = `<span class="ic">${t.icon}</span>${t.label}`;
+    b.className = 'spread-btn' + (i === 0 ? ' active' : '');
+    b.dataset.key = opt.key;
+    b.innerHTML = `<span class="sb-name">${opt.label}</span><span class="sb-sub">${opt.sub}</span>`;
     b.addEventListener('click', () => {
-      document.querySelectorAll('.topic-btn').forEach((x) => x.classList.remove('active'));
+      $$('.spread-btn').forEach((x) => x.classList.remove('active'));
       b.classList.add('active');
-      state.topic = t.key;
+      state.spreadKey = opt.key;
     });
     wrap.appendChild(b);
   });
 }
 
-/* ---------------- 表单校验 ---------------- */
+/* ──────────────── 表单读取 ──────────────── */
 function readForm() {
   const name = $('#f-name').value.trim() || '有缘人';
-  const date = $('#f-date').value;      // yyyy-mm-dd
-  const time = $('#f-time').value;      // hh:mm 可空
+  const date = $('#f-date').value;
+  const time = $('#f-time').value;
   const place = $('#f-place').value.trim();
   const question = $('#f-question').value.trim();
-  if (!date) { return { error: '请填写你的出生日期，这是定盘的根基。' }; }
+  if (!date) return { error: '请填写你的出生日期，这是定盘的根基。' };
   const [y, m, d] = date.split('-').map(Number);
-  return { name, y, m, d, time, place, question, topic: state.topic };
+  return { name, y, m, d, time, place, question, spreadKey: state.spreadKey };
 }
 
-/* ---------------- 生成解读 ---------------- */
+/* ──────────────── 生成解读 ──────────────── */
 function buildResult(f) {
-  const sign = getSunSign(f.m, f.d);
-  const asc = estimateAscendant(f.y, f.m, f.d, f.time, f.place);
+  const sunSign = getSunSign(f.m, f.d);
+  const planets = estimatePlanets(f.y, f.m, f.d, f.time, f.place);
   const deck = buildDeck();
-  const spread = SPREADS[f.topic];
+  const spread = SPREADS[f.spreadKey];
 
-  // 种子：出生信息 + 问题 + 领域 + 当日日期（让"今日之问"有当下的行运感）
   const today = new Date().toISOString().slice(0, 10);
-  const seedStr = [f.name, f.y, f.m, f.d, f.time, f.place, f.question, f.topic, today].join('|');
+  const seedStr = [f.name, f.y, f.m, f.d, f.time, f.place, f.question, f.spreadKey, today].join('|');
   const rng = mulberry32(hashSeed(seedStr));
 
-  const draws = drawCards(rng, deck, spread.positions.length);
-
-  // 综合寄语：结合星座与正/逆位的整体倾向
-  const upCount = draws.filter((d) => !d.reversed).length;
-  const total = draws.length;
-  let tone;
-  if (upCount === total) {
-    tone = '三张牌尽数正位，能量顺畅通达，正是乘势而行的好时机';
-  } else if (upCount === 0) {
-    tone = '三张牌皆为逆位，提示你先向内调整、清理阻碍，蓄势方能后发';
-  } else if (upCount >= total - upCount) {
-    tone = '正位居多，大势向好，只需留意逆位之处点到的功课';
-  } else {
-    tone = '逆位偏多，眼下宜守宜省，把绊住你的心结一一解开，转机自会到来';
+  // 抽牌
+  const pool = deck.slice();
+  const draws = [];
+  for (let i = 0; i < spread.size; i++) {
+    const idx = Math.floor(rng() * pool.length);
+    const card = pool.splice(idx, 1)[0];
+    const reversed = rng() < 0.42;
+    draws.push({ card, reversed });
   }
 
-  const ascSentence = asc
-    ? `太阳落于${sign.name}、上升约在${asc.sign.name}，前者是你的内核，后者是你面向世界的姿态。`
-    : '';
-  const closing = `作为${sign.element}象的${sign.name}，你的底色是「${sign.keywords.join('、')}」。` +
-    ascSentence +
-    `本次牌阵中${tone}。${sign.trait}让塔罗照见的，与你星盘的本性彼此呼应，顺此而行，问题自会显出答案。`;
+  // 综合寄语
+  const upCount = draws.filter((d) => !d.reversed).length;
+  let tone;
+  if (upCount === draws.length) tone = '牌尽数正位，能量顺畅通达，正是乘势而为的好时机';
+  else if (upCount === 0) tone = '牌皆为逆位，提示你先向内调整、清理阻碍，蓄势方能后发';
+  else if (upCount > draws.length / 2) tone = '正位居多，大势向好，只需留意逆位处点到的功课';
+  else tone = '逆位偏多，宜守宜省，把绊住你的心结一一解开，转机自会到来';
 
-  return { sign, asc, spread, draws, closing };
+  const moonSentence = planets.moon
+    ? `月亮落在${planets.moon.sign.name}，掌管你的情绪本能与内在需求。`
+    : '';
+  const ascSentence = planets.asc
+    ? `上升约在${planets.asc.sign.name}，是你面向世界的姿态与第一印象。`
+    : '';
+  const moonHouseSentence = planets.moonHouse
+    ? `月亮位于${HOUSE_THEMES[planets.moonHouse - 1]}，情绪能量聚焦于此。`
+    : '';
+
+  const closing =
+    `作为${sunSign.element}象的${sunSign.name}，你的底色是「${sunSign.keywords.join('、')}」。` +
+    moonSentence + ascSentence + moonHouseSentence +
+    `本次${spread.name}中${tone}。${sunSign.trait}` +
+    `让塔罗照见的，与你星盘的本性彼此呼应，顺此而行，问题自会显出答案。`;
+
+  return { sunSign, planets, spread, draws, closing };
 }
 
-/* ---------------- 渲染结果 ---------------- */
-function renderResult(f, result) {
-  const { sign, asc, spread, draws, closing } = result;
+/* ──────────────── 渲染本命盘卡片 ──────────────── */
+function renderNatal(f, result) {
+  const { sunSign, planets } = result;
 
-  // 上升星座行（估算）
+  // 月亮星座行
+  const moonLine = planets.moon
+    ? `<div class="natal-planet">
+        <span class="planet-ic">🌙</span>
+        <span class="planet-label">月亮</span>
+        <b>${planets.moon.sign.symbol} ${planets.moon.sign.name}</b>
+        <span class="planet-kw">${planets.moon.sign.keywords.slice(0, 2).join('·')}</span>
+        ${planets.moonHouse ? `<span class="planet-house">${HOUSE_THEMES[planets.moonHouse - 1]}</span>` : ''}
+       </div>`
+    : '';
+
+  // 上升星座行
   let ascLine;
-  if (asc) {
-    const note = asc.matched
-      ? `按「${asc.city.name}」经纬度估算`
-      : '未识别出生地点，按默认经纬度估算';
-    ascLine = `<div class="natal-asc">上升星座（估算）
-        <b>${asc.sign.symbol} ${asc.sign.name}</b>
-        <span class="asc-note">${note}，仅供参考</span></div>`;
+  if (planets.asc) {
+    const note = planets.asc.matched
+      ? `按「${planets.asc.city.name}」经纬度估算`
+      : '未识别出生地点，按默认坐标估算';
+    ascLine = `<div class="natal-planet">
+        <span class="planet-ic">↑</span>
+        <span class="planet-label">上升</span>
+        <b>${planets.asc.sign.symbol} ${planets.asc.sign.name}</b>
+        <span class="planet-kw">${planets.asc.sign.keywords.slice(0, 2).join('·')}</span>
+        <span class="asc-note">${note}</span>
+       </div>`;
   } else {
-    ascLine = `<div class="natal-asc muted">💡 填写出生时间（和地点）可估算你的上升星座</div>`;
+    ascLine = `<div class="natal-planet muted">↑ 上升：填写出生时间+地点可估算</div>`;
   }
 
-  // 本命盘卡片
   $('#natal').innerHTML = `
-    <div class="natal-symbol">${sign.symbol}</div>
+    <div class="natal-symbol">${sunSign.symbol}</div>
     <div class="natal-info">
-      <div class="natal-name">${f.name} · ${sign.name}</div>
-      <div class="natal-meta">${sign.element}象 · ${sign.quality}宫 · 守护星 ${sign.planet}</div>
-      <div class="natal-key">${sign.keywords.map((k) => `<span>${k}</span>`).join('')}</div>
-      ${ascLine}
+      <div class="natal-name">${f.name} · ${sunSign.name}</div>
+      <div class="natal-meta">${sunSign.element}象 · ${sunSign.quality}宫 · 守护星 ${sunSign.planet}</div>
+      <div class="natal-key">${sunSign.keywords.map((k) => `<span>${k}</span>`).join('')}</div>
+      <div class="natal-planets">${moonLine}${ascLine}</div>
     </div>`;
+}
 
-  $('#spread-name').textContent = `牌阵：${spread.name}`;
-  $('#topic-echo').textContent = f.question ? `所问：${f.question}` : '所问：随缘一卦';
-
-  // 牌位
+/* ──────────────── 渲染牌阵 ──────────────── */
+function renderBoard(spread, draws) {
   const board = $('#board');
   board.innerHTML = '';
+  const isCeltic = spread.size === 10;
+  board.className = 'board' + (isCeltic ? ' board-celtic' : spread.size === 5 ? ' board-5' : '');
+
   draws.forEach((d, i) => {
     const { card, reversed } = d;
     const pos = spread.positions[i];
     const meaning = reversed ? card.rev : card.up;
-    const oriLabel = reversed ? '逆位' : '正位';
     const slot = document.createElement('div');
     slot.className = 'card-slot';
+    // 凯尔特十字用 data-pos 标记布局位置 (1-10)
+    if (isCeltic) slot.dataset.pos = i + 1;
+
     slot.innerHTML = `
       <div class="slot-label">${pos.title}</div>
       <div class="card" data-index="${i}">
@@ -229,51 +314,60 @@ function renderResult(f, result) {
               <div class="tarot-name">${card.name}</div>
               <div class="tarot-en">${card.en}</div>
             </div>
-            <div class="tarot-ori ${reversed ? 'rev' : 'up'}">${oriLabel}</div>
+            <div class="tarot-ori ${reversed ? 'rev' : 'up'}">${reversed ? '逆位' : '正位'}</div>
           </div>
         </div>
       </div>
       <div class="card-read" data-read="${i}">
-        <div class="cr-title">${card.name} · ${oriLabel}
-          <span class="cr-ori-badge ${reversed ? 'rev' : 'up'}">${oriLabel}</span>
+        <div class="cr-title">${card.name} · ${reversed ? '逆位' : '正位'}
+          <span class="cr-ori-badge ${reversed ? 'rev' : 'up'}">${reversed ? '逆' : '正'}</span>
         </div>
-        <div class="cr-hint">${pos.hint} · 对应${card.astro}</div>
+        <div class="cr-hint">${pos.hint} · ${card.astro}</div>
         <div class="cr-body">${meaning}</div>
         <div class="cr-advice">◈ ${card.advice}</div>
       </div>`;
     board.appendChild(slot);
   });
+}
 
+/* ──────────────── 主渲染 ──────────────── */
+function renderResult(f, result) {
+  const { spread, draws, closing } = result;
+
+  renderNatal(f, result);
+  $('#spread-name').textContent = `牌阵：${spread.name}`;
+  $('#topic-echo').textContent = f.question ? `所问：${f.question}` : '所问：随缘一卦';
+
+  renderBoard(spread, draws);
   $('#closing').textContent = closing;
 
-  // 切换到结果视图
   $('#stage-form').classList.add('hidden');
   $('#stage-result').classList.remove('hidden');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // 依次翻牌
-  const cardEls = board.querySelectorAll('.card');
+  // 逐张翻牌
+  const cardEls = $('#board').querySelectorAll('.card');
   cardEls.forEach((el, i) => {
     setTimeout(() => {
       el.classList.add('flipped');
-      const read = board.querySelector(`[data-read="${i}"]`);
-      setTimeout(() => read.classList.add('show'), 500);
-    }, 500 + i * 850);
+      const read = $('#board').querySelector(`[data-read="${i}"]`);
+      setTimeout(() => read.classList.add('show'), 480);
+    }, 400 + i * 750);
   });
+
   // 全部翻完后显示综合寄语
-  const totalDelay = 500 + draws.length * 850 + 700;
-  setTimeout(() => $('#closing-wrap').classList.add('show'), totalDelay);
+  setTimeout(() => $('#closing-wrap').classList.add('show'),
+    400 + draws.length * 750 + 700);
 }
 
-/* ---------------- 事件绑定 ---------------- */
+/* ──────────────── 事件绑定 ──────────────── */
 function initEvents() {
   $('#divine-btn').addEventListener('click', () => {
     const f = readForm();
     const err = $('#form-error');
     if (f.error) { err.textContent = f.error; err.classList.add('show'); return; }
     err.classList.remove('show');
-    const result = buildResult(f);
-    renderResult(f, result);
+    renderResult(f, buildResult(f));
   });
 
   $('#again-btn').addEventListener('click', () => {
@@ -285,6 +379,6 @@ function initEvents() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  initTopics();
+  initSpreads();
   initEvents();
 });
