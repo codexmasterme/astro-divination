@@ -202,7 +202,12 @@ function buildResult(f) {
   const spread = SPREADS[f.spreadKey];
 
   const today = new Date().toISOString().slice(0, 10);
-  const seedStr = [f.name, f.y, f.m, f.d, f.time, f.place, f.question, f.spreadKey, today].join('|');
+  // 归一化地点：同一地方的不同写法（周口 / 河南周口 / 中国河南周口）应解析到同一城市，
+  // 故抽牌种子用「解析出的城市规范名」而非原始文本；未识别的地点退化为去空格原文。
+  // 否则仅改动地点写法就会改变种子，导致抽到完全不同的牌（与「盘由人定」的稳定性相悖）。
+  const matchedCity = geocodeCity(f.place);
+  const placeKey = matchedCity ? matchedCity.name : (f.place || '').replace(/\s/g, '');
+  const seedStr = [f.name, f.y, f.m, f.d, f.time, placeKey, f.question, f.spreadKey, today].join('|');
   const rng = mulberry32(hashSeed(seedStr));
 
   // 抽牌
